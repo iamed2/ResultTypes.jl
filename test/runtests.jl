@@ -9,6 +9,13 @@ using Base.Test
         @test iserror(x) === false
     end
 
+    @testset "Result with error type" begin
+        x = Result(2, DivideError)
+        @test unwrap(x) === 2
+        @test_throws ErrorException unwrap_error(x)
+        @test iserror(x) === false
+    end
+
     @testset "Malformed result" begin
         x = Result(Nullable{Int}(), Nullable{DivideError}())
         @test_throws ErrorException unwrap(x)
