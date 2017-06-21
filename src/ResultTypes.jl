@@ -2,7 +2,7 @@ module ResultTypes
 
 export Result, ErrorResult, unwrap, unwrap_error, iserror
 
-type Result{T, E<:Exception}
+immutable Result{T, E<:Exception}
     result::Nullable{T}
     error::Nullable{E}
 end
