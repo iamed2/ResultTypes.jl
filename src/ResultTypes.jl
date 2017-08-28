@@ -2,19 +2,19 @@ module ResultTypes
 
 export Result, ErrorResult, unwrap, unwrap_error, iserror
 
-immutable Result{T, E<:Exception}
+struct Result{T, E<:Exception}
     result::Nullable{T}
     error::Nullable{E}
 end
 
-Result{T}(x::T) = Result{T, ErrorException}(Nullable{T}(x), Nullable{ErrorException}())
-Result{T, E}(x::T, ::Type{E}) = Result{T, E}(Nullable{T}(x), Nullable{E}())
+Result(x::T) where {T} = Result{T, ErrorException}(Nullable{T}(x), Nullable{ErrorException}())
+Result(x::T, ::Type{E}) where {T, E} = Result{T, E}(Nullable{T}(x), Nullable{E}())
 
-function ErrorResult{T, E<:Exception}(::Type{T}, e::E)
+function ErrorResult(::Type{T}, e::E) where {T, E<:Exception}
     Result{T, E}(Nullable{T}(), Nullable{E}(e))
 end
 
-function ErrorResult{T}(::Type{T}, e::AbstractString="")
+function ErrorResult(::Type{T}, e::AbstractString="") where T
     Result{T, ErrorException}(Nullable{T}(), Nullable{ErrorException}(ErrorException(e)))
 end
 
@@ -38,15 +38,15 @@ end
 
 Base.convert{T, S, E}(::Type{T}, r::Result{S, E})::T = unwrap(r)
 
-function Base.convert{T, S, E}(::Type{Result{S, E}}, x::T)
+function Base.convert(::Type{Result{S, E}}, x::T) where {T, S, E}
     Result{S, E}(Nullable{S}(convert(S, x)), Nullable{E}())
 end
 
-function Base.convert{T, E}(::Type{Result{T, E}}, e::E)
+function Base.convert(::Type{Result{T, E}}, e::E) where {T, E}
     Result{T, E}(Nullable{T}(), Nullable{E}(e))
 end
 
-function Base.show{T, E}(io::IO, r::Result{T, E})
+function Base.show(io::IO, r::Result{T, E}) where {T, E}
     if iserror(r)
         print(io, "ErrorResult(", T, ", ", unwrap_error(r), ")")
     else
