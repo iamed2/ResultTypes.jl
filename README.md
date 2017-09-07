@@ -12,16 +12,21 @@ This allows us to return a value or an error in a type-stable manner without thr
 ### Basic
 
 We can construct a `Result` that holds a value:
+
 ```julia
 julia> x = Result(2); typeof(x)
 ResultTypes.Result{Int64,ErrorException}
 ```
+
 or a `Result` that holds an error:
+
 ```julia
 julia> x = ErrorResult(Int, "Oh noes!"); typeof(x)
 ResultTypes.Result{Int64,ErrorException}
 ```
+
 or either with a different error type:
+
 ```julia
 julia> x = Result(2, DivideError); typeof(x)
 ResultTypes.Result{Int64,DivideError}
@@ -33,6 +38,7 @@ ResultTypes.Result{Int64,DivideError}
 ### Exploiting Function Return Types
 
 We can take advantage of automatic conversions in function returns (a Julia 0.5 feature):
+
 ```julia
 function integer_division(x::Int, y::Int)::Result{Int, DivideError}
     if y == 0
@@ -44,6 +50,7 @@ end
 ```
 
 This allows us to write code in the body of the function that returns either a value or an error without manually constructing `Result` types.
+
 ```julia
 julia> integer_division(3, 4)
 Result(0)
@@ -57,6 +64,7 @@ ErrorResult(Int64, DivideError())
 ### Theoretical
 
 Using the function above, we can use `@code_warntype` to verify that the compiler is doing what we desire:
+
 ```julia
 julia> @code_warntype integer_division(3,2)
 Variables:
@@ -65,12 +73,12 @@ Variables:
   y::Int64
 
 Body:
-  begin  # REPL[11], line 2:
-      SSAValue(0) = ResultTypes.Result{Int64,DivideError}
-      unless (y::Int64 === 0)::Bool goto 6 # line 3:
-      return $(Expr(:new, ResultTypes.Result{Int64,DivideError}, :($(Expr(:new, Nullable{Int64}, true))), :($(Expr(:new, Nullable{DivideError}, false, :($(Expr(:new, :(Core.DivideError)))))))))
-      6:  # line 5:
-      return $(Expr(:new, ResultTypes.Result{Int64,DivideError}, :($(Expr(:new, Nullable{Int64}, false, :((Base.box)(Int64,(Base.checked_sdiv_int)(x,y)))))), :($(Expr(:new, Nullable{DivideError}, true)))))
+  begin
+      unless (y::Int64 === 0)::Bool goto 4 # line 3:
+      return $(Expr(:new, ResultTypes.Result{Int64,DivideError}, :($(Expr(:new, Nullable{Int64}, false))), :($(Expr(:new, Nullable{DivideError}, true, :($(QuoteNode(DivideError()))))))))
+      4:  # line 5:
+      SSAValue(1) = (Base.checked_sdiv_int)(x::Int64, y::Int64)::Int64
+      return $(Expr(:new, ResultTypes.Result{Int64,DivideError}, :($(Expr(:new, Nullable{Int64}, true, SSAValue(1)))), :($(Expr(:new, Nullable{DivideError}, false)))))
   end::ResultTypes.Result{Int64,DivideError}
 ```
 
@@ -81,6 +89,7 @@ We want to call the function and return the value if present or a default value 
 For this example we can use `div` and our `integer_division` function as a microbenchmark (they are too simple to provide a realistic use case).
 
 Here's our wrapping function for `div`:
+
 ```julia
 function func1(x,y)
    local z
@@ -93,7 +102,9 @@ function func1(x,y)
    return z
 end
 ```
+
 and for `integer_division`:
+
 ```julia
 function func2(x, y)
    r = integer_division(x,y)
@@ -106,39 +117,77 @@ end
 ```
 
 Here are some benchmark results in the average case (on one machine), using [BenchmarkTools.jl](https://github.com/JuliaCI/BenchmarkTools.jl):
+
 ```julia
 julia> using BenchmarkTools
 
 julia> t1 = @benchmark for i = 1:10 func1(3, i % 2) end
 BenchmarkTools.Trial:
+  memory estimate:  0 bytes
+  allocs estimate:  0
+  --------------
+  minimum time:     299.175 μs (0.00% GC)
+  median time:      340.283 μs (0.00% GC)
+  mean time:        368.364 μs (0.00% GC)
+  maximum time:     1.681 ms (0.00% GC)
+  --------------
   samples:          10000
   evals/sample:     1
-  time tolerance:   5.00%
-  memory tolerance: 1.00%
-  memory estimate:  0.00 bytes
-  allocs estimate:  0
-  minimum time:     307.31 μs (0.00% GC)
-  median time:      335.21 μs (0.00% GC)
-  mean time:        355.05 μs (0.00% GC)
-  maximum time:     8.80 ms (0.00% GC)
 
 julia> t2 = @benchmark for i = 1:10 func2(3, i % 2) end
 BenchmarkTools.Trial:
+  memory estimate:  0 bytes
+  allocs estimate:  0
+  --------------
+  minimum time:     98.093 ns (0.00% GC)
+  median time:      111.542 ns (0.00% GC)
+  mean time:        120.148 ns (0.00% GC)
+  maximum time:     537.122 ns (0.00% GC)
+  --------------
   samples:          10000
-  evals/sample:     451
-  time tolerance:   5.00%
-  memory tolerance: 1.00%
-  memory estimate:  320.00 bytes
-  allocs estimate:  10
-  minimum time:     228.00 ns (0.00% GC)
-  median time:      238.00 ns (0.00% GC)
-  mean time:        270.81 ns (6.25% GC)
-  maximum time:     5.00 μs (91.59% GC)
+  evals/sample:     946
 
 julia> judge(mean(t2), mean(t1))
 BenchmarkTools.TrialJudgement:
-  time:   -99.92% => improvement (5.00% tolerance)
-  memory: +Inf% => regression (1.00% tolerance)
+  time:   -99.97% => improvement (5.00% tolerance)
+  memory: +0.00% => invariant (1.00% tolerance)
 ```
 
-As we can see, we get a huge speed improvement for a negligible memory cost (32 bytes per call to `func2`).
+As we can see, we get a huge speed improvement without allocating any extra heap memory.
+
+It's also interesting to look at the cost when no error occurs:
+
+```julia
+julia> t1 = @benchmark for i = 1:10 func1(3, 1) end
+BenchmarkTools.Trial:
+  memory estimate:  0 bytes
+  allocs estimate:  0
+  --------------
+  minimum time:     219.074 ns (0.00% GC)
+  median time:      236.420 ns (0.00% GC)
+  mean time:        252.231 ns (0.00% GC)
+  maximum time:     1.049 μs (0.00% GC)
+  --------------
+  samples:          10000
+  evals/sample:     501
+
+julia> t2 = @benchmark for i = 1:10 func2(3, 1) end
+BenchmarkTools.Trial:
+  memory estimate:  0 bytes
+  allocs estimate:  0
+  --------------
+  minimum time:     150.658 ns (0.00% GC)
+  median time:      170.757 ns (0.00% GC)
+  mean time:        181.448 ns (0.00% GC)
+  maximum time:     1.096 μs (0.00% GC)
+  --------------
+  samples:          10000
+  evals/sample:     555
+
+julia> judge(mean(t2), mean(t1))
+BenchmarkTools.TrialJudgement:
+  time:   -28.06% => improvement (5.00% tolerance)
+  memory: +0.00% => invariant (1.00% tolerance)
+```
+
+It's _still faster_ to avoid `try` and use `Result`, even when the error condition is never triggered.

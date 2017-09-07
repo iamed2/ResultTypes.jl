@@ -2,7 +2,7 @@ module ResultTypes
 
 export Result, ErrorResult, unwrap, unwrap_error, iserror
 
-type Result{T, E<:Exception}
+immutable Result{T, E<:Exception}
     result::Nullable{T}
     error::Nullable{E}
 end
@@ -14,12 +14,8 @@ function ErrorResult{T, E<:Exception}(::Type{T}, e::E)
     Result{T, E}(Nullable{T}(), Nullable{E}(e))
 end
 
-function ErrorResult{T}(::Type{T}, e::AbstractString)
+function ErrorResult{T}(::Type{T}, e::AbstractString="")
     Result{T, ErrorException}(Nullable{T}(), Nullable{ErrorException}(ErrorException(e)))
-end
-
-function ErrorResult{T}(::Type{T})
-    Result{T, ErrorException}(Nullable{T}(), Nullable{ErrorException}(ErrorException("")))
 end
 
 function unwrap{T, E}(r::Result{T, E})::T
