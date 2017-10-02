@@ -1,3 +1,5 @@
+__precompile__()
+
 module ResultTypes
 
 export Result, ErrorResult, unwrap, unwrap_error, iserror
