@@ -2,6 +2,8 @@ __precompile__()
 
 module ResultTypes
 
+using Nullables
+
 export Result, ErrorResult, unwrap, unwrap_error, iserror
 
 struct Result{T, E<:Exception}
@@ -20,7 +22,7 @@ function ErrorResult(::Type{T}, e::AbstractString="") where T
     Result{T, ErrorException}(Nullable{T}(), Nullable{ErrorException}(ErrorException(e)))
 end
 
-function unwrap{T, E}(r::Result{T, E})::T
+function unwrap(r::Result{T, E})::T where {T, E}
     if !isnull(r.result)
         return get(r.result)
     elseif !isnull(r.error)
@@ -30,7 +32,7 @@ function unwrap{T, E}(r::Result{T, E})::T
     end
 end
 
-function unwrap_error{T, E}(r::Result{T, E})::E
+function unwrap_error(r::Result{T, E})::E where {T, E}
     if !isnull(r.error)
         return get(r.error)
     else
@@ -38,7 +40,9 @@ function unwrap_error{T, E}(r::Result{T, E})::E
     end
 end
 
-Base.convert{T, S, E}(::Type{T}, r::Result{S, E})::T = unwrap(r)
+function Base.convert(::Type{T}, r::Result{S, E})::T where {T, S, E}
+    unwrap(r)
+end
 
 function Base.convert(::Type{Result{S, E}}, x::T) where {T, S, E}
     Result{S, E}(Nullable{S}(convert(S, x)), Nullable{E}())

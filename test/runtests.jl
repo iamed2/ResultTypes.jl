@@ -1,5 +1,8 @@
 using ResultTypes
-using Base.Test
+using Compat.Test
+using Nullables
+
+@testset "ResultTypes" begin
 
 @testset "Result" begin
     @testset "Basic result" begin
@@ -52,14 +55,14 @@ end
 @testset "Convert" begin
     @testset "From Result" begin
         x = Result(2)
-        @test Int(x) === 2
-        @test Float64(x) === 2.0
-        @test_throws MethodError String(x)
+        @test convert(Int, x) === 2
+        @test convert(Float64, x) === 2.0
+        @test_throws MethodError convert(String, x)
     end
 
     @testset "From ErrorResult" begin
         x = ErrorResult(Int, "Foo")
-        @test_throws ErrorException Int(x)
+        @test_throws ErrorException convert(Int, x)
     end
 
     @testset "To Result" begin
@@ -106,4 +109,6 @@ end
         x = ErrorResult(Int, "Basic Error")
         @test isa(string(x), String)
     end
+end
+
 end
