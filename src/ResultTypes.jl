@@ -40,6 +40,12 @@ function unwrap_error(r::Result{T, E})::E where {T, E}
     end
 end
 
+# To avoid ambiguity errors. For example, when returning `Result` types from a map function
+# we end up doing a `convert(::Type{ResultTypes.Result{S,E}}, ::ResultTypes.Result{S,E})`.
+function Base.convert(::Type{Result{S, E}}, r::Result{S, E}) where {S, E}
+    return r
+end
+
 function Base.convert(::Type{T}, r::Result{S, E})::T where {T, S, E}
     unwrap(r)
 end

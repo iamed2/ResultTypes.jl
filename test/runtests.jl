@@ -76,6 +76,16 @@ end
         @test unwrap_error(x) == DivideError()
         @test isa(x, Result{Int, DivideError})
     end
+
+    @testset "Result to Result" begin
+        r = Result{Int, DivideError}(DivideError())
+        x = convert(Result{Int, DivideError}, r)
+        @test r == x
+
+        r = Result{Int, ErrorException}(2)
+        x = convert(Result{Int, ErrorException}, r)
+        @test r == x
+    end
 end
 
 @testset "Return" begin
