@@ -10,6 +10,10 @@ using Nullables
         @test unwrap(x) === 2
         @test_throws ErrorException unwrap_error(x)
         @test iserror(x) === false
+
+        # on unwrapped already
+        y = unwrap(x)
+        @test unwrap(y) === y
     end
 
     @testset "Result with error type" begin
@@ -34,6 +38,11 @@ end
         @test isa(e, ErrorException)
         @test e.msg == "Basic Error"
         @test iserror(x) === true
+
+        # directly on exceptions
+        @test iserror(e)
+        @test unwrap_error(e) === e
+        @test !iserror(2)
     end
 
     @testset "Empty error" begin
@@ -55,14 +64,19 @@ end
 @testset "Convert" begin
     @testset "From Result" begin
         x = Result(2)
-        @test convert(Int, x) === 2
-        @test convert(Float64, x) === 2.0
-        @test_throws MethodError convert(String, x)
+        @test convert(Int, x) === 2  # deprecated
+        @test convert(Float64, x) === 2.0  # deprecated
+        @test_throws MethodError convert(String, x)  # deprecated
+
+        @test unwrap(Int, x) === 2
+        @test unwrap(Float64, x) === 2.0
+        @test_throws MethodError unwrap(String, x)
     end
 
     @testset "From ErrorResult" begin
         x = ErrorResult(Int, "Foo")
-        @test_throws ErrorException convert(Int, x)
+        @test_throws ErrorException convert(Int, x)  # deprecated
+        @test_throws ErrorException unwrap(Int, x)
     end
 
     @testset "To Result" begin
@@ -81,10 +95,38 @@ end
         r = Result{Int, DivideError}(DivideError())
         x = convert(Result{Int, DivideError}, r)
         @test r == x
+        @test r === x
 
         r = Result{Int, ErrorException}(2)
         x = convert(Result{Int, ErrorException}, r)
         @test r == x
+
+        r = Result{Int, KeyError}(KeyError("foo"))
+        x = convert(Result{Real, Exception}, r)
+        @test x isa Result{Real, Exception}
+        @test_throws KeyError unwrap(x)
+
+        r = Result{Int, KeyError}(2)
+        x = convert(Result{Real, Exception}, r)
+        @test x isa Result{Real, Exception}
+        @test unwrap(x) == 2
+    end
+
+    @testset "Ambiguities" begin
+        ambs = filter(Test.detect_ambiguities(Base, ResultTypes)) do amb
+            undeprecated = all(amb) do m
+                # method is deprecated, here or in Base
+                m.file != Symbol("deprecated.jl")
+            end
+
+            ours = any(amb) do m
+                m.module == ResultTypes
+            end
+
+            undeprecated && ours
+        end
+
+        @test isempty(ambs)
     end
 end
 
