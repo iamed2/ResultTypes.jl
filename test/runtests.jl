@@ -128,6 +128,9 @@ end
         @test eltype([Result(2), ErrorResult(DivideError())]) == Result{Any, Exception}
         @test eltype([Result(2.0), ErrorResult(Int, KeyError(:foo))]) == Result{Float64, Exception}
         @test eltype([Result(2.0, KeyError), ErrorResult(Int, KeyError(:foo))]) == Result{Float64, KeyError}
+
+        # only for coverage, this is called above
+        @test promote_rule(Result{Float64, Exception}, Result{Int, KeyError}) == Result{Float64, Exception}
     end
 
     @testset "Ambiguities" begin
