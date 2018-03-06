@@ -5,7 +5,7 @@ module ResultTypes
 using Nullables
 import Base: convert
 
-export Result, ErrorResult, unwrap, unwrap_error, iserror
+export Result, ErrorResult, unwrap, unwrap_error
 
 struct Result{T, E <: Exception}
     result::Nullable{T}
@@ -112,8 +112,6 @@ end
 function Base.convert(::Type{Result{S, E}}, r::Result) where {S, E <: Exception}
     return promote_type(Result{S, E}, typeof(r))(r.result, r.error)
 end
-
-@deprecate convert(t::Type, r::Result) unwrap(t, r)
 
 function Base.convert(::Type{Result{S, E}}, x::T) where {T, S, E <: Exception}
     return Result{S, E}(Nullable{S}(convert(S, x)), Nullable{E}())
