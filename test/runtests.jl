@@ -75,10 +75,6 @@ end
 @testset "Convert" begin
     @testset "From Result" begin
         x = Result(2)
-        @test convert(Int, x) === 2  # deprecated
-        @test convert(Float64, x) === 2.0  # deprecated
-        @test_throws MethodError convert(String, x)  # deprecated
-
         @test unwrap(Int, x) === 2
         @test unwrap(Float64, x) === 2.0
         @test_throws MethodError unwrap(String, x)
@@ -86,7 +82,6 @@ end
 
     @testset "From ErrorResult" begin
         x = ErrorResult(Int, "Foo")
-        @test_throws ErrorException convert(Int, x)  # deprecated
         @test_throws ErrorException unwrap(Int, x)
     end
 
