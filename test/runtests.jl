@@ -10,6 +10,7 @@ using Nullables
         @test unwrap(x) === 2
         @test_throws ErrorException unwrap_error(x)
         @test iserror(x) === false
+        @test x isa Result{Int, Exception}
 
         # on unwrapped already
         y = unwrap(x)
@@ -21,6 +22,7 @@ using Nullables
         @test unwrap(x) === 2
         @test_throws ErrorException unwrap_error(x)
         @test iserror(x) === false
+        @test x isa Result{Int, DivideError}
     end
 
     @testset "Malformed result" begin
@@ -51,6 +53,14 @@ end
         e = unwrap_error(x)
         @test isa(e, ErrorException)
         @test iserror(x) === true
+        @test x isa Result{Int, ErrorException}
+
+        x = ErrorResult()
+        @test_throws ErrorException unwrap(x)
+        e = unwrap_error(x)
+        @test isa(e, ErrorException)
+        @test iserror(x) === true
+        @test x isa Result{Any, ErrorException}
     end
 
     @testset "Typed Error" begin
@@ -58,6 +68,7 @@ end
         @test_throws DivideError unwrap(x)
         @test isa(unwrap_error(x), DivideError)
         @test iserror(x) === true
+        @test x isa Result{Int, DivideError}
     end
 end
 
@@ -110,6 +121,13 @@ end
         x = convert(Result{Real, Exception}, r)
         @test x isa Result{Real, Exception}
         @test unwrap(x) == 2
+    end
+
+    @testset "Promote" begin
+        @test eltype([Result(2), ErrorResult(Int, DivideError())]) == Result{Int, Exception}
+        @test eltype([Result(2), ErrorResult(DivideError())]) == Result{Any, Exception}
+        @test eltype([Result(2.0), ErrorResult(Int, KeyError(:foo))]) == Result{Float64, Exception}
+        @test eltype([Result(2.0, KeyError), ErrorResult(Int, KeyError(:foo))]) == Result{Float64, KeyError}
     end
 
     @testset "Ambiguities" begin
