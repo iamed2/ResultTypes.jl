@@ -7,7 +7,7 @@ import Base: convert
 
 export Result, ErrorResult, unwrap, unwrap_error, iserror
 
-struct Result{T, E<:Exception}
+struct Result{T, E <: Exception}
     result::Nullable{T}
     error::Nullable{E}
 end
@@ -20,7 +20,10 @@ store `val` in it.
 If the exception type is not provided, the supertype `Exception` is used as `E`.
 """
 Result(x::T) where {T} = Result{T, Exception}(Nullable{T}(x), Nullable{Exception}())
-Result(x::T, ::Type{E}) where {T, E} = Result{T, E}(Nullable{T}(x), Nullable{E}())
+
+function Result(x::T, ::Type{E}) where {T, E <: Exception}
+    return Result{T, E}(Nullable{T}(x), Nullable{E}())
+end
 
 """
     ErrorResult(::Type{T}, exception::E) -> Result{T, E}
@@ -34,12 +37,12 @@ If the type argument is not provided, `Any` is used.
 
 `ErrorResult` is a convenience function for creating a `Result` and is not its own type.
 """
-function ErrorResult(::Type{T}, e::E) where {T, E<:Exception}
-    Result{T, E}(Nullable{T}(), Nullable{E}(e))
+function ErrorResult(::Type{T}, e::E) where {T, E <: Exception}
+    return Result{T, E}(Nullable{T}(), Nullable{E}(e))
 end
 
 function ErrorResult(::Type{T}, e::AbstractString="") where T
-    Result{T, ErrorException}(Nullable{T}(), Nullable{ErrorException}(ErrorException(e)))
+    return Result{T, ErrorException}(Nullable{T}(), Nullable(ErrorException(e)))
 end
 
 ErrorResult(e::Union{Exception, AbstractString}="") = ErrorResult(Any, e)
@@ -57,7 +60,7 @@ If `unwrap`'s argument is not a `Result`, it is returned.
 The two-argument form of `unwrap` calls `unwrap` on its second argument, then converts it to
 type `T`.
 """
-function unwrap(r::Result{T, E})::T where {T, E}
+function unwrap(r::Result{T, E})::T where {T, E <: Exception}
     if !isnull(r.result)
         return get(r.result)
     elseif !isnull(r.error)
@@ -71,7 +74,7 @@ unwrap(x) = x
 
 # auto-converts to T
 function unwrap(::Type{T}, x)::T where {T}
-    unwrap(x)
+    return unwrap(x)
 end
 
 """
@@ -83,7 +86,7 @@ If `result` holds a value instead, throw an exception.
 
 If `unwrap_error`'s argument is an `Exception`, that exception is returned.
 """
-function unwrap_error(r::Result{T, E})::E where {T, E}
+function unwrap_error(r::Result{T, E})::E where {T, E <: Exception}
     if !isnull(r.error)
         return get(r.error)
     else
@@ -93,31 +96,34 @@ end
 
 unwrap_error(e::Exception) = e
 
-function Base.promote_rule(::Type{Result{S1, E1}}, ::Type{Result{S2, E2}}) where {S1, E1, S2, E2}
+function Base.promote_rule(
+    ::Type{Result{S1, E1}},
+    ::Type{Result{S2, E2}},
+) where {S1, E1 <: Exception, S2, E2 <: Exception}
     return Result{promote_type(S1, S2), promote_type(E1, E2)}
 end
 
 # To avoid ambiguity errors. For example, when returning `Result` types from a map function
 # we end up doing a `convert(::Type{ResultTypes.Result{S,E}}, ::ResultTypes.Result{S,E})`.
-function Base.convert(::Type{Result{S, E}}, r::Result{S, E}) where {S, E}
+function Base.convert(::Type{Result{S, E}}, r::Result{S, E}) where {S, E <: Exception}
     return r
 end
 
-function Base.convert(::Type{Result{S, E}}, r::Result) where {S, E}
+function Base.convert(::Type{Result{S, E}}, r::Result) where {S, E <: Exception}
     return promote_type(Result{S, E}, typeof(r))(r.result, r.error)
 end
 
 @deprecate convert(t::Type, r::Result) unwrap(t, r)
 
-function Base.convert(::Type{Result{S, E}}, x::T) where {T, S, E}
-    Result{S, E}(Nullable{S}(convert(S, x)), Nullable{E}())
+function Base.convert(::Type{Result{S, E}}, x::T) where {T, S, E <: Exception}
+    return Result{S, E}(Nullable{S}(convert(S, x)), Nullable{E}())
 end
 
 function Base.convert(::Type{Result{T, E}}, e::E) where {T, E <: Exception}
-    Result{T, E}(Nullable{T}(), Nullable{E}(e))
+    return Result{T, E}(Nullable{T}(), Nullable{E}(e))
 end
 
-function Base.show(io::IO, r::Result{T, E}) where {T, E}
+function Base.show(io::IO, r::Result{T, E}) where {T, E <: Exception}
     if iserror(r)
         print(io, "ErrorResult(", T, ", ", unwrap_error(r), ")")
     else
