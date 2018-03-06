@@ -9,7 +9,7 @@ using Nullables
         x = Result(2)
         @test unwrap(x) === 2
         @test_throws ErrorException unwrap_error(x)
-        @test iserror(x) === false
+        @test ResultTypes.iserror(x) === false
         @test x isa Result{Int, Exception}
 
         # on unwrapped already
@@ -21,7 +21,7 @@ using Nullables
         x = Result(2, DivideError)
         @test unwrap(x) === 2
         @test_throws ErrorException unwrap_error(x)
-        @test iserror(x) === false
+        @test ResultTypes.iserror(x) === false
         @test x isa Result{Int, DivideError}
     end
 
@@ -39,12 +39,12 @@ end
         e = unwrap_error(x)
         @test isa(e, ErrorException)
         @test e.msg == "Basic Error"
-        @test iserror(x) === true
+        @test ResultTypes.iserror(x) === true
 
         # directly on exceptions
-        @test iserror(e)
+        @test ResultTypes.iserror(e)
         @test unwrap_error(e) === e
-        @test !iserror(2)
+        @test !ResultTypes.iserror(2)
     end
 
     @testset "Empty error" begin
@@ -52,14 +52,14 @@ end
         @test_throws ErrorException unwrap(x)
         e = unwrap_error(x)
         @test isa(e, ErrorException)
-        @test iserror(x) === true
+        @test ResultTypes.iserror(x) === true
         @test x isa Result{Int, ErrorException}
 
         x = ErrorResult()
         @test_throws ErrorException unwrap(x)
         e = unwrap_error(x)
         @test isa(e, ErrorException)
-        @test iserror(x) === true
+        @test ResultTypes.iserror(x) === true
         @test x isa Result{Any, ErrorException}
     end
 
@@ -67,7 +67,7 @@ end
         x = ErrorResult(Int, DivideError())
         @test_throws DivideError unwrap(x)
         @test isa(unwrap_error(x), DivideError)
-        @test iserror(x) === true
+        @test ResultTypes.iserror(x) === true
         @test x isa Result{Int, DivideError}
     end
 end

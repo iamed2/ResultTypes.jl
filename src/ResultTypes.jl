@@ -5,7 +5,7 @@ module ResultTypes
 using Nullables
 import Base: convert
 
-export Result, ErrorResult, unwrap, unwrap_error, iserror
+export Result, ErrorResult, unwrap, unwrap_error
 
 struct Result{T, E <: Exception}
     result::Nullable{T}
