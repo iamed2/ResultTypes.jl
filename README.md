@@ -67,20 +67,16 @@ ErrorResult(Int64, DivideError())
 Using the function above, we can use `@code_warntype` to verify that the compiler is doing what we desire:
 
 ```julia
-julia> @code_warntype integer_division(3,2)
-Variables:
-  #self#::#integer_division
-  x::Int64
-  y::Int64
-
-Body:
-  begin
-      unless (y::Int64 === 0)::Bool goto 4 # line 3:
-      return $(Expr(:new, ResultTypes.Result{Int64,DivideError}, :($(Expr(:new, Nullable{Int64}, false))), :($(Expr(:new, Nullable{DivideError}, true, :($(QuoteNode(DivideError()))))))))
-      4:  # line 5:
-      SSAValue(1) = (Base.checked_sdiv_int)(x::Int64, y::Int64)::Int64
-      return $(Expr(:new, ResultTypes.Result{Int64,DivideError}, :($(Expr(:new, Nullable{Int64}, true, SSAValue(1)))), :($(Expr(:new, Nullable{DivideError}, false)))))
-  end::ResultTypes.Result{Int64,DivideError}
+julia> @code_warntype integer_division(3, 2)
+Body::Result{Int64,DivideError}
+2 1 ─ %1 = (y === 0)::Bool                                                                                       │╻     ==
+  └──      goto #3 if not %1                                                                                     │
+3 2 ─ %3 = %new(Result{Int64,DivideError}, nothing, $(QuoteNode(DivideError())))::Result{Int64,DivideError}      │╻╷    convert
+  └──      return %3                                                                                             │
+5 3 ─ %5 = (Base.checked_sdiv_int)(x, y)::Int64                                                                  │╻     div
+  │   %6 = %new(Some{Int64}, %5)::Some{Int64}                                                                    ││╻╷╷╷  Type
+  │   %7 = %new(Result{Int64,DivideError}, %6, nothing)::Result{Int64,DivideError}                               │││
+  └──      return %7                                                                                             │
 ```
 
 ### Experimental
@@ -88,49 +84,49 @@ Body:
 Suppose we have two versions of a function where one returns a value or throws an exception and the other returns a `Result` type.
 We want to call the function and return the value if present or a default value if there was an error.
 For this example we can use `div` and our `integer_division` function as a microbenchmark (they are too simple to provide a realistic use case).
+We'll use `@noinline` to ensure the functions don't get inlined, which will make the benchmarks more comparable.
 
 Here's our wrapping function for `div`:
 
 ```julia
-function func1(x,y)
-   local z
-   try
-       z = div(x,y)
-   catch e
-       z = 0
-   end
-
-   return z
+@noinline function func1(x, y)
+    local z
+    try
+        z = div(x, y)
+    catch e
+        z = 0
+    end
+    return z
 end
 ```
 
 and for `integer_division`:
 
 ```julia
-function func2(x, y)
-   r = integer_division(x,y)
-   if iserror(r)
-       return 0
-   else
-       return unwrap(r)
-   end
+@noinline function func2(x, y)
+    r = integer_division(x, y)
+    if ResultTypes.iserror(r)
+        return 0
+    else
+        return unwrap(r)
+    end
 end
 ```
 
 Here are some benchmark results in the average case (on one machine), using [BenchmarkTools.jl](https://github.com/JuliaCI/BenchmarkTools.jl):
 
 ```julia
-julia> using BenchmarkTools
+julia> using BenchmarkTools, Statistics
 
 julia> t1 = @benchmark for i = 1:10 func1(3, i % 2) end
 BenchmarkTools.Trial:
   memory estimate:  0 bytes
   allocs estimate:  0
   --------------
-  minimum time:     299.175 μs (0.00% GC)
-  median time:      340.283 μs (0.00% GC)
-  mean time:        368.364 μs (0.00% GC)
-  maximum time:     1.681 ms (0.00% GC)
+  minimum time:     121.664 μs (0.00% GC)
+  median time:      122.652 μs (0.00% GC)
+  mean time:        124.350 μs (0.00% GC)
+  maximum time:     388.198 μs (0.00% GC)
   --------------
   samples:          10000
   evals/sample:     1
@@ -140,17 +136,17 @@ BenchmarkTools.Trial:
   memory estimate:  0 bytes
   allocs estimate:  0
   --------------
-  minimum time:     98.093 ns (0.00% GC)
-  median time:      111.542 ns (0.00% GC)
-  mean time:        120.148 ns (0.00% GC)
-  maximum time:     537.122 ns (0.00% GC)
+  minimum time:     18.853 ns (0.00% GC)
+  median time:      21.078 ns (0.00% GC)
+  mean time:        21.183 ns (0.00% GC)
+  maximum time:     275.057 ns (0.00% GC)
   --------------
   samples:          10000
-  evals/sample:     946
+  evals/sample:     997
 
 julia> judge(mean(t2), mean(t1))
 BenchmarkTools.TrialJudgement:
-  time:   -99.97% => improvement (5.00% tolerance)
+  time:   -99.98% => improvement (5.00% tolerance)
   memory: +0.00% => invariant (1.00% tolerance)
 ```
 
@@ -164,30 +160,30 @@ BenchmarkTools.Trial:
   memory estimate:  0 bytes
   allocs estimate:  0
   --------------
-  minimum time:     219.074 ns (0.00% GC)
-  median time:      236.420 ns (0.00% GC)
-  mean time:        252.231 ns (0.00% GC)
-  maximum time:     1.049 μs (0.00% GC)
+  minimum time:     115.060 ns (0.00% GC)
+  median time:      118.042 ns (0.00% GC)
+  mean time:        118.616 ns (0.00% GC)
+  maximum time:     279.901 ns (0.00% GC)
   --------------
   samples:          10000
-  evals/sample:     501
+  evals/sample:     918
 
 julia> t2 = @benchmark for i = 1:10 func2(3, 1) end
 BenchmarkTools.Trial:
   memory estimate:  0 bytes
   allocs estimate:  0
   --------------
-  minimum time:     150.658 ns (0.00% GC)
-  median time:      170.757 ns (0.00% GC)
-  mean time:        181.448 ns (0.00% GC)
-  maximum time:     1.096 μs (0.00% GC)
+  minimum time:     28.775 ns (0.00% GC)
+  median time:      30.516 ns (0.00% GC)
+  mean time:        31.290 ns (0.00% GC)
+  maximum time:     74.936 ns (0.00% GC)
   --------------
   samples:          10000
-  evals/sample:     555
+  evals/sample:     995
 
 julia> judge(mean(t2), mean(t1))
 BenchmarkTools.TrialJudgement:
-  time:   -28.06% => improvement (5.00% tolerance)
+  time:   -73.62% => improvement (5.00% tolerance)
   memory: +0.00% => invariant (1.00% tolerance)
 ```
 
