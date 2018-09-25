@@ -1,6 +1,5 @@
 using ResultTypes
-using Compat.Test
-using Nullables
+using Test
 
 @testset "ResultTypes" begin
 
@@ -26,7 +25,7 @@ using Nullables
     end
 
     @testset "Malformed result" begin
-        x = Result(Nullable{Int}(), Nullable{DivideError}())
+        x = Result{Int, Exception}(nothing, nothing)
         @test_throws ErrorException unwrap(x)
         @test_throws ErrorException unwrap_error(x)
     end

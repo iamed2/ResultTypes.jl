@@ -1,15 +1,10 @@
-__precompile__()
-
 module ResultTypes
-
-using Nullables
-import Base: convert
 
 export Result, ErrorResult, unwrap, unwrap_error
 
 struct Result{T, E <: Exception}
-    result::Nullable{T}
-    error::Nullable{E}
+    result::Union{Some{T}, Nothing}
+    error::Union{E, Nothing}
 end
 
 """
@@ -19,11 +14,16 @@ Create a `Result` that could hold a value of type `T` or an exception of type `E
 store `val` in it.
 If the exception type is not provided, the supertype `Exception` is used as `E`.
 """
-Result(x::T) where {T} = Result{T, Exception}(Nullable{T}(x), Nullable{Exception}())
+Result(x::T) where {T} = Result{T, Exception}(Some(x), nothing)
 
 function Result(x::T, ::Type{E}) where {T, E <: Exception}
-    return Result{T, E}(Nullable{T}(x), Nullable{E}())
+    return Result{T, E}(Some(x), nothing)
 end
+
+# As of Julia 0.7, constructors no longer fall back to convert methods, so we can
+# set that up manually to happen. Constructor methods that don't make sense will
+# helpfully produce convert MethodErrors.
+Result{T, E}(x) where {T, E <: Exception} = convert(Result{T, E}, x)
 
 """
     ErrorResult(::Type{T}, exception::E) -> Result{T, E}
@@ -38,11 +38,11 @@ If the type argument is not provided, `Any` is used.
 `ErrorResult` is a convenience function for creating a `Result` and is not its own type.
 """
 function ErrorResult(::Type{T}, e::E) where {T, E <: Exception}
-    return Result{T, E}(Nullable{T}(), Nullable{E}(e))
+    return Result{T, E}(nothing, e)
 end
 
 function ErrorResult(::Type{T}, e::AbstractString="") where T
-    return Result{T, ErrorException}(Nullable{T}(), Nullable(ErrorException(e)))
+    return Result{T, ErrorException}(nothing, ErrorException(e))
 end
 
 ErrorResult(e::Union{Exception, AbstractString}="") = ErrorResult(Any, e)
@@ -61,10 +61,10 @@ The two-argument form of `unwrap` calls `unwrap` on its second argument, then co
 type `T`.
 """
 function unwrap(r::Result{T, E})::T where {T, E <: Exception}
-    if !isnull(r.result)
-        return get(r.result)
-    elseif !isnull(r.error)
-        throw(get(r.error))
+    if r.result !== nothing
+        return something(r.result)
+    elseif r.error !== nothing
+        throw(r.error)
     else
         error("Empty Result{$T, $E} type")
     end
@@ -87,8 +87,8 @@ If `result` holds a value instead, throw an exception.
 If `unwrap_error`'s argument is an `Exception`, that exception is returned.
 """
 function unwrap_error(r::Result{T, E})::E where {T, E <: Exception}
-    if !isnull(r.error)
-        return get(r.error)
+    if r.error !== nothing
+        return r.error
     else
         error("$r is not an ErrorResult")
     end
@@ -114,11 +114,11 @@ function Base.convert(::Type{Result{S, E}}, r::Result) where {S, E <: Exception}
 end
 
 function Base.convert(::Type{Result{S, E}}, x::T) where {T, S, E <: Exception}
-    return Result{S, E}(Nullable{S}(convert(S, x)), Nullable{E}())
+    return Result{S, E}(Some(convert(S, x)), nothing)
 end
 
 function Base.convert(::Type{Result{T, E}}, e::E) where {T, E <: Exception}
-    return Result{T, E}(Nullable{T}(), Nullable{E}(e))
+    return Result{T, E}(nothing, e)
 end
 
 function Base.show(io::IO, r::Result{T, E}) where {T, E <: Exception}
@@ -137,7 +137,7 @@ If `x` is an `ErrorResult` (a `Result` containing an `Exception`), return `true`
 Return `false` in all other cases.
 """
 iserror(e::Exception) = true
-iserror(r::Result) = !isnull(r.error)
+iserror(r::Result) = r.error !== nothing
 iserror(x) = false
 
 end # module
