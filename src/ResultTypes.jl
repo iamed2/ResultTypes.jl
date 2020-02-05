@@ -1,6 +1,6 @@
 module ResultTypes
 
-export Result, ErrorResult, unwrap, unwrap_error
+export Result, ErrorResult, unwrap, unwrap_error, @try
 
 struct Result{T, E <: Exception}
     result::Union{Some{T}, Nothing}
@@ -121,6 +121,10 @@ function Base.convert(::Type{Result{T, E}}, e::E) where {T, E <: Exception}
     return Result{T, E}(nothing, e)
 end
 
+function Base.convert(::Type{Result{T, E}}, e::E2) where {T, E <: Exception, E2 <: Exception}
+    return Result{T,E}(nothing, convert(E, e))
+end
+
 function Base.show(io::IO, r::Result{T, E}) where {T, E <: Exception}
     if iserror(r)
         print(io, "ErrorResult(", T, ", ", unwrap_error(r), ")")
@@ -139,5 +143,98 @@ Return `false` in all other cases.
 iserror(e::Exception) = true
 iserror(r::Result) = r.error !== nothing
 iserror(x) = false
+
+"""
+    @try x
+    @try(x)
+
+if `x` is an error (i.e., `iserror(x) == true`), unwrap the error
+and return from the current function.  Otherwise, unwrap `x`.
+
+If the unwrapped exception is of the wrong type, there must be a `Base.convert`
+method which will convert it to the correct type.  (See the example in the
+extended help below.)
+
+This macro is meant to reduce boilerplate when calling functions returning `Result`s.
+
+# Extended help
+
+A typical set of functions using `ResultTypes` might look something like this:
+
+```julia
+Base.convert(::Type{FooError}, err::BarError) = FooError("Got a BarError: \$(err.msg)")
+
+function isbar(y)::Result{Bool, BarError}
+    bad_value(y) && return BarError("Bad value: \$y")
+    return y == "bar"
+end
+
+function foo(x)::Result{Int, FooError}
+    result = isbar(x)
+    ResultTypes.iserror(result) && return unwrap_error(result)
+    is_b = unwrap(result)
+
+    return is_b ? 42 : 13
+end
+```
+
+With the `@try` macro, `foo` gets shortened to
+
+```julia
+function foo(x)::Result{Int, FooError}
+    is_b = @try(isbar(x))
+    return is_b ? 42 : 13
+end
+```
+"""
+macro _try(r)
+    return quote
+        result = $(esc(r))
+        if ResultTypes.iserror(result)
+            return unwrap_error(result)
+        else
+            unwrap(result)
+        end
+    end
+end
+
+"""
+    @try x err
+    @try(x, err)
+
+if `x` is an error, return a new exception `err`.  Otherwise, unwrap `x`.
+
+This version of @try does not require any exceptions to be converted.
+
+# Extended help
+
+Example:
+
+```julia
+function isbar(y)::Result{Bool, BarError}
+    bad_value(y) && return BarError("Bad value: \$y")
+    return y == "bar"
+end
+
+function foo(x)::Result{Int, FooError}
+    is_b = @try(isbar(x), FooError())
+    return is_b ? 42 : 13
+end
+```
+
+"""
+macro _try(r, err)
+    return quote
+        result = $(esc(r))
+        if ResultTypes.iserror(result)
+            return $(esc(err))
+        else
+            unwrap(result)
+        end
+    end
+end
+
+# We can't define @try directly, but we can define it like this:
+@eval $(Symbol("@try")) = $(Symbol("@_try"))
 
 end # module

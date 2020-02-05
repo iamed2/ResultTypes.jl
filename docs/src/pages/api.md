@@ -14,3 +14,9 @@ unwrap
 unwrap_error
 ResultTypes.iserror
 ```
+
+## Macros
+
+```@docs
+@try
+```
