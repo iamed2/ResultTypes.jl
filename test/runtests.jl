@@ -1,6 +1,9 @@
 using ResultTypes
 using Test
 
+struct BarError <: Exception end
+struct FooError <: Exception end
+
 @testset "ResultTypes" begin
 
 @testset "Result" begin
@@ -163,6 +166,49 @@ end
         @test isa(y, Result{Int, DivideError})
         @test unwrap_error(y) == DivideError()
     end
+end
+
+@testset "@try" begin
+    Base.convert(::Type{FooError}, ::BarError) = FooError()
+
+    function isbar(x)::Result{Bool, BarError}
+        x == "foo" && return BarError()
+        return x == "bar"
+    end
+
+    function foo(x)::Result{Int, FooError}
+        bar = @try isbar(x)
+        return bar ? 42 : 13
+    end
+
+    foobar = foo("bar")
+    @test isa(foobar, Result{Int, FooError})
+    @test unwrap(foobar) === 42
+
+    foofoo = foo("foo")
+    @test isa(foofoo, Result{Int, FooError})
+    @test unwrap_error(foofoo) === FooError()
+
+    football = foo("tball")
+    @test isa(football, Result{Int, FooError})
+    @test unwrap(football) === 13
+
+    function foo2(x)::Result{Int, ErrorException}
+        bar = @try(isbar(x), ErrorException("Got a BarError"))
+        return bar ? 43 : 14
+    end
+
+    foobar = foo2("bar")
+    @test isa(foobar, Result{Int, ErrorException})
+    @test unwrap(foobar) === 43
+
+    foofoo = foo2("foo")
+    @test isa(foofoo, Result{Int, ErrorException})
+    @test unwrap_error(foofoo) === ErrorException("Got a BarError")
+
+    football = foo2("tball")
+    @test isa(football, Result{Int, ErrorException})
+    @test unwrap(football) === 14
 end
 
 @testset "Show" begin
