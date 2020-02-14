@@ -1,9 +1,9 @@
 # ResultTypes
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://iamed2.github.io/ResultTypes.jl/stable)
-[![Latest](https://img.shields.io/badge/docs-latest-blue.svg)](https://iamed2.github.io/ResultTypes.jl/latest)
-[![Build Status](https://travis-ci.org/iamed2/ResultTypes.jl.svg?branch=master)](https://travis-ci.org/iamed2/ResultTypes.jl)
-[![codecov](https://codecov.io/gh/iamed2/ResultTypes.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/iamed2/ResultTypes.jl)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://iamed2.github.io/ResultTypes.jl/dev)
+[![Build Status](https://travis-ci.com/iamed2/ResultTypes.jl.svg?branch=master)](https://travis-ci.com/iamed2/ResultTypes.jl)
+[![Codecov](https://codecov.io/gh/iamed2/ResultTypes.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/iamed2/ResultTypes.jl)
 
 ResultTypes provides a `Result` type which can hold either a value or an error.
 This allows us to return a value or an error in a type-stable manner without throwing an exception.

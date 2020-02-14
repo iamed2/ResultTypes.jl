@@ -1,0 +1,13 @@
+name = "ResultTypes"
+uuid = "19f44d07-93a8-4090-9cae-59678feee32b"
+authors = ["Eric Davies"]
+version = "3.0.0"
+
+[compat]
+julia = "0.7"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

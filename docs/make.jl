@@ -2,7 +2,7 @@ using Documenter, ResultTypes
 
 makedocs(;
     modules=[ResultTypes],
-    format=:html,
+    format=Documenter.HTML(),
     pages=[
         "Home" => "index.md",
         "API" => "pages/api.md",
@@ -15,8 +15,4 @@ makedocs(;
 
 deploydocs(;
     repo="github.com/iamed2/ResultTypes.jl",
-    target="build",
-    julia="0.6",
-    deps=nothing,
-    make=nothing,
 )
