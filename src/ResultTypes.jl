@@ -1,6 +1,6 @@
 module ResultTypes
 
-export Result, ErrorResult, unwrap, unwrap_error, @try
+export Result, ErrorResult, unwrap, unwrap_error, @try, @throw
 
 struct Result{T, E <: Exception}
     result::Union{Some{T}, Nothing}
@@ -236,5 +236,33 @@ end
 
 # We can't define @try directly, but we can define it like this:
 @eval $(Symbol("@try")) = $(Symbol("@_try"))
+
+
+"""
+    @throw x
+    @throw(x)
+       
+If the given `expression` evaluates to an `ErrorResult` throw the exception.
+Otherwise, unwrap the result.
+
+# Example:
+
+```julia
+julia> foo(i::Int)::Result{Int,ArgumentError} = i ≥ 0 ? i : ArgumentError("negative `i`")
+julia> result = @throw(foo(1))
+julia> @assert result == 1
+julia> result = @throw(foo(-1)) # throws `ArgumentError`
+```
+"""
+macro throw(r)
+    return quote
+        result = $(esc(r))
+        if ResultTypes.iserror(result)
+            throw(ResultTypes.unwrap_error(result))
+        end
+        unwrap(result)
+    end
+end
+
 
 end # module
