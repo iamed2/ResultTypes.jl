@@ -113,8 +113,16 @@ function Base.convert(::Type{Result{S, E}}, r::Result) where {S, E <: Exception}
     return promote_type(Result{S, E}, typeof(r))(r.result, r.error)
 end
 
+function Base.convert(::Type{Result{Any, E}}, r::Result) where {E <: Exception}
+    return promote_type(Result{Any, E}, typeof(r))(r.result, r.error)
+end
+
 function Base.convert(::Type{Result{S, E}}, x::T) where {T, S, E <: Exception}
     return Result{S, E}(Some(convert(S, x)), nothing)
+end
+
+function Base.convert(::Type{Result{Any, E}}, @nospecialize(x)) where {E <: Exception}
+    return Result{Any, E}(Some{Any}(x), nothing)
 end
 
 function Base.convert(::Type{Result{T, E}}, e::E) where {T, E <: Exception}
@@ -123,6 +131,10 @@ end
 
 function Base.convert(::Type{Result{T, E}}, e::E2) where {T, E <: Exception, E2 <: Exception}
     return Result{T,E}(nothing, convert(E, e))
+end
+
+function Base.convert(::Type{Result{Any, E}}, e::E2) where {E <: Exception, E2 <: Exception}
+    return Result{Any,E}(nothing, convert(E, e))
 end
 
 function Base.show(io::IO, r::Result{T, E}) where {T, E <: Exception}
