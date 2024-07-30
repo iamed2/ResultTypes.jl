@@ -146,6 +146,18 @@ end
 
         @test isempty(ambs)
     end
+
+    @testset "Specializations" begin
+        AnyRes = Result{Any, Exception}
+        struct MyT end
+    
+        convert(AnyRes, MyT())
+        method = only(methods(convert, Tuple{Type{AnyRes}, MyT}))
+        specs = method.specializations
+        specs_v = method.specializations isa Core.MethodInstance ? [specs] : collect(method.specializations)
+        @test only(filter(!isnothing, specs_v)).specTypes ==
+              Tuple{typeof(convert), Type{AnyRes}, Any}
+      end    
 end
 
 @testset "Return" begin
