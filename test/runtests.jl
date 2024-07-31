@@ -17,6 +17,10 @@ struct FooError <: Exception end
         # on unwrapped already
         y = unwrap(x)
         @test unwrap(y) === y
+
+        # can be broadcasted over
+        x = Result(4)
+        @test unwrap.(x) == 4
     end
 
     @testset "Result with error type" begin

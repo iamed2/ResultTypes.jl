@@ -7,6 +7,8 @@ struct Result{T, E <: Exception}
     error::Union{E, Nothing}
 end
 
+Base.broadcastable(r::Result) = Ref(r)
+
 """
     Result(val::T, exception_type::Type{E}=Exception) -> Result{T, E}
 
