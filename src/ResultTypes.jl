@@ -2,9 +2,9 @@ module ResultTypes
 
 export Result, ErrorResult, unwrap, unwrap_error, @try
 
-struct Result{T, E <: Exception}
-    result::Union{Some{T}, Nothing}
-    error::Union{E, Nothing}
+struct Result{T,E<:Exception}
+    result::Union{Some{T},Nothing}
+    error::Union{E,Nothing}
 end
 
 Base.broadcastable(r::Result) = Ref(r)
@@ -16,16 +16,16 @@ Create a `Result` that could hold a value of type `T` or an exception of type `E
 store `val` in it.
 If the exception type is not provided, the supertype `Exception` is used as `E`.
 """
-Result(x::T) where {T} = Result{T, Exception}(Some(x), nothing)
+Result(x::T) where {T} = Result{T,Exception}(Some(x), nothing)
 
-function Result(x::T, ::Type{E}) where {T, E <: Exception}
-    return Result{T, E}(Some(x), nothing)
+function Result(x::T, ::Type{E}) where {T,E<:Exception}
+    return Result{T,E}(Some(x), nothing)
 end
 
 # As of Julia 0.7, constructors no longer fall back to convert methods, so we can
 # set that up manually to happen. Constructor methods that don't make sense will
 # helpfully produce convert MethodErrors.
-Result{T, E}(x) where {T, E <: Exception} = convert(Result{T, E}, x)
+Result{T,E}(x) where {T,E<:Exception} = convert(Result{T,E}, x)
 
 """
     ErrorResult(::Type{T}, exception::E) -> Result{T, E}
@@ -39,15 +39,15 @@ If the type argument is not provided, `Any` is used.
 
 `ErrorResult` is a convenience function for creating a `Result` and is not its own type.
 """
-function ErrorResult(::Type{T}, e::E) where {T, E <: Exception}
-    return Result{T, E}(nothing, e)
+function ErrorResult(::Type{T}, e::E) where {T,E<:Exception}
+    return Result{T,E}(nothing, e)
 end
 
-function ErrorResult(::Type{T}, e::AbstractString="") where T
-    return Result{T, ErrorException}(nothing, ErrorException(e))
+function ErrorResult(::Type{T}, e::AbstractString="") where {T}
+    return Result{T,ErrorException}(nothing, ErrorException(e))
 end
 
-ErrorResult(e::Union{Exception, AbstractString}="") = ErrorResult(Any, e)
+ErrorResult(e::Union{Exception,AbstractString}="") = ErrorResult(Any, e)
 
 """
     unwrap(result::Result{T, E}) -> T
@@ -62,7 +62,7 @@ If `unwrap`'s argument is not a `Result`, it is returned.
 The two-argument form of `unwrap` calls `unwrap` on its second argument, then converts it to
 type `T`.
 """
-function unwrap(r::Result{T, E})::T where {T, E <: Exception}
+function unwrap(r::Result{T,E})::T where {T,E<:Exception}
     if r.result !== nothing
         return something(r.result)
     elseif r.error !== nothing
@@ -88,7 +88,7 @@ If `result` holds a value instead, throw an exception.
 
 If `unwrap_error`'s argument is an `Exception`, that exception is returned.
 """
-function unwrap_error(r::Result{T, E})::E where {T, E <: Exception}
+function unwrap_error(r::Result{T,E})::E where {T,E<:Exception}
     if r.error !== nothing
         return r.error
     else
@@ -99,47 +99,47 @@ end
 unwrap_error(e::Exception) = e
 
 function Base.promote_rule(
-    ::Type{Result{S1, E1}},
-    ::Type{Result{S2, E2}},
-) where {S1, E1 <: Exception, S2, E2 <: Exception}
-    return Result{promote_type(S1, S2), promote_type(E1, E2)}
+    ::Type{Result{S1,E1}},
+    ::Type{Result{S2,E2}},
+) where {S1,E1<:Exception,S2,E2<:Exception}
+    return Result{promote_type(S1, S2),promote_type(E1, E2)}
 end
 
 # To avoid ambiguity errors. For example, when returning `Result` types from a map function
 # we end up doing a `convert(::Type{ResultTypes.Result{S,E}}, ::ResultTypes.Result{S,E})`.
-function Base.convert(::Type{Result{S, E}}, r::Result{S, E}) where {S, E <: Exception}
+function Base.convert(::Type{Result{S,E}}, r::Result{S,E}) where {S,E<:Exception}
     return r
 end
 
-function Base.convert(::Type{Result{S, E}}, r::Result) where {S, E <: Exception}
-    return promote_type(Result{S, E}, typeof(r))(r.result, r.error)
+function Base.convert(::Type{Result{S,E}}, r::Result) where {S,E<:Exception}
+    return promote_type(Result{S,E}, typeof(r))(r.result, r.error)
 end
 
-function Base.convert(::Type{Result{Any, E}}, r::Result) where {E <: Exception}
-    return promote_type(Result{Any, E}, typeof(r))(r.result, r.error)
+function Base.convert(::Type{Result{Any,E}}, r::Result) where {E<:Exception}
+    return promote_type(Result{Any,E}, typeof(r))(r.result, r.error)
 end
 
-function Base.convert(::Type{Result{S, E}}, x::T) where {T, S, E <: Exception}
-    return Result{S, E}(Some(convert(S, x)), nothing)
+function Base.convert(::Type{Result{S,E}}, x::T) where {T,S,E<:Exception}
+    return Result{S,E}(Some(convert(S, x)), nothing)
 end
 
-function Base.convert(::Type{Result{Any, E}}, @nospecialize(x)) where {E <: Exception}
-    return Result{Any, E}(Some{Any}(x), nothing)
+function Base.convert(::Type{Result{Any,E}}, @nospecialize(x)) where {E<:Exception}
+    return Result{Any,E}(Some{Any}(x), nothing)
 end
 
-function Base.convert(::Type{Result{T, E}}, e::E) where {T, E <: Exception}
-    return Result{T, E}(nothing, e)
+function Base.convert(::Type{Result{T,E}}, e::E) where {T,E<:Exception}
+    return Result{T,E}(nothing, e)
 end
 
-function Base.convert(::Type{Result{T, E}}, e::E2) where {T, E <: Exception, E2 <: Exception}
+function Base.convert(::Type{Result{T,E}}, e::E2) where {T,E<:Exception,E2<:Exception}
     return Result{T,E}(nothing, convert(E, e))
 end
 
-function Base.convert(::Type{Result{Any, E}}, e::E2) where {E <: Exception, E2 <: Exception}
+function Base.convert(::Type{Result{Any,E}}, e::E2) where {E<:Exception,E2<:Exception}
     return Result{Any,E}(nothing, convert(E, e))
 end
 
-function Base.show(io::IO, r::Result{T, E}) where {T, E <: Exception}
+function Base.show(io::IO, r::Result{T,E}) where {T,E<:Exception}
     if iserror(r)
         print(io, "ErrorResult(", T, ", ", unwrap_error(r), ")")
     else
@@ -250,5 +250,7 @@ end
 
 # We can't define @try directly, but we can define it like this:
 @eval $(Symbol("@try")) = $(Symbol("@_try"))
+
+include("SafeBase.jl")
 
 end # module

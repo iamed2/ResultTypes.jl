@@ -1,15 +1,17 @@
 """
-This module contains definitions of common `Base` functions, but 
+This module contains definitions of common `Base` functions, but
 returning a `Result` type. Such functions start with the `safe_` prefix.
 
 It also contains some specific errors that meant to be more informative.
 """
 module SafeBase
 
-export ParseError, safe_parse, EvalError, safe_eval
+using JuliaSyntax
+using ..ResultTypes
+export ParseError, safe_parse, safe_parse_julia, safe_parseall_julia, parse_julia, parseall_julia, EvalError, safe_eval
 
 "A stack trace, as would be accessed when catching an exception."
-const Backtrace = Vector{Union{Base.InterpreterIP, Ptr{Nothing}}}
+const Backtrace = Vector{Union{Base.InterpreterIP,Ptr{Nothing}}}
 
 """
 An error when parsing an object of one type into another type.
@@ -22,7 +24,7 @@ struct ParseError <: Exception
   source::Any
   msg::String
   bt::Backtrace
-  caused_by::Union{Exception, Nothing}
+  caused_by::Union{Exception,Nothing}
 end
 
 ParseError(target::Type, source::Any, msg::String, bt::Backtrace) =
@@ -41,33 +43,81 @@ end
 """
     safe_parse(T, ex)::Result{T, ParseError}
 
-This function should behave like `Base.parse` and `Base.tryparse`. 
-It takes a type `T` and a value `ex` to parse, but returns a 
+This function should behave like `Base.parse` and `Base.tryparse`.
+It takes a type `T` and a value `ex` to parse, but returns a
 `Result{T, ParseError}` from ResultTypes.jl on failure instead.
 
 - `Base.parse` throws on failure, returns value otherwise
 - `Base.tryparse` returns `nothing` on failure, returns value otherwise
 - `JuliaModule.safe_parse` returns a `Result{T, ParseError}`.
 
-Please define methods for this function and avoid extending `Base.tryparse` and 
-`Base.parse`, as Result types in Julia are generally more performant than throwing exceptions 
-and provide cleaner control flow and error reporting than the other solutions. 
+Please define methods for this function and avoid extending `Base.tryparse` and
+`Base.parse`, as Result types in Julia are generally more performant than throwing exceptions
+and provide cleaner control flow and error reporting than the other solutions.
 """
 function safe_parse end
 
-function safe_parse(T::Type{<:Union{<:AbstractFloat, <:Integer}}, slurp...; kwargs)::Result{T, ParseError}
-  res = tryparse(T, slurp...; kwargs)
+function safe_parse(T::Type{<:Union{<:AbstractFloat,<:Integer}}, slurp...; kwargs...)::Result{T,ParseError}
+  res = tryparse(T, slurp...; kwargs...)
   isnothing(res) && return ParseError(T, slurp, "Could not parse $(slurp...) into type $T", backtrace())
   res
 end
 
+
+# ---------------------------------------
+# # Julia parsing
+
+"""
+Alternative to `Meta.parse` based on `JuliaSyntax.jl` library. Function doesn't throw, but wraps returned value (or error) in a `Result`.
+As opposed to `Meta.parse`, `:error` and `:incomplete` expressions both are treated as `ParseError`.
+
+Optional argument `rule` can accept values :statement or :all, indicating parsing single-expression vs multi-expression inputs, respectively.
+Optional argument `filename` is passed to set any file name information, if applicable. This will also annotate errors and warnings with the
+source file name.
+
+Implementation of this function mimics [JuliaSyntax._parse](https://github.com/JuliaLang/JuliaSyntax.jl/blob/3bf262bba32e833ed6d0d59a455a62faee97b408/src/parser_api.jl#L77)
+"""
+function safe_parse_julia(
+  str::AbstractString,
+  rule::Symbol=:statement,
+  filename::Union{Nothing,String}=nothing,
+)::Result{Any,ParseError}
+  stream = JuliaSyntax.ParseStream(str)
+
+  JuliaSyntax.parse!(stream; rule)
+
+  if peek(stream, skip_newlines=false, skip_whitespace=false) != K"EndMarker"
+    JuliaSyntax.emit_diagnostic(stream, error="unexpected text after parsing $rule")
+  end
+
+  if JuliaSyntax.any_error(stream.diagnostics) || !JuliaSyntax.isempty(stream.diagnostics)
+    ex = JuliaSyntax.ParseError(stream; filename)
+    return ParseError(Any, str, "Failed to parse String into Julia expression", backtrace(), ex)
+  end
+  JuliaSyntax.build_tree(Expr, stream; filename)
+end
+
+parse_julia(
+  str::AbstractString,
+  rule::Symbol=:statement,
+  filename::Union{Nothing,String}=nothing,
+) = unwrap(safe_parse_julia(str, rule, filename))
+
+"""Alternative to `Meta.parseall` that does not return incomplete expressions and doesn't throw, but wraps returned value (or error) in a `Result`."""
+safe_parseall_julia(str::AbstractString, filename::Union{Nothing,String}=nothing) =
+  safe_parse_julia(str, :all, filename)
+
+"""Alternative to `Meta.parseall` that does not return incomplete expressions. Throws on error."""
+parseall_julia(str::AbstractString, filename::Union{Nothing,String}=nothing) = parse_julia(str, :all, filename)
+
+
 # ---------------------------
-# Evaluation 
+# Evaluation
 
 
 struct EvalError <: Exception
   mod::Module
-  expr::Union{Expr, Symbol}
+  expr::Union{Expr,Symbol}
   exc::Exception
   bt::Backtrace
 end
@@ -92,13 +142,14 @@ function Base.showerror(io::IO, err::EvalError)
   Base.display_error(io, err.exc, err.bt)
 end
 
+
 """
 Evaluate expression `expr` in module `m` (defaulting to `Kamchatka`).
 
 This function can optionally throw if an exception is encountered.
 Otherwise, a silent failure is indicated by returning `nothing`.
 """
-function safe_eval(m::Module, expr)::Result{Any, EvalError}
+function safe_eval(m::Module, expr)::Result{Any,EvalError}
   try
     Core.eval(m, expr)
   catch e
@@ -106,7 +157,7 @@ function safe_eval(m::Module, expr)::Result{Any, EvalError}
   end
 end
 
-function safe_eval(m::Module, expr::AbstractString; parse_kws...)::Result{Any, EvalError}
+function safe_eval(m::Module, expr::AbstractString; parse_kws...)::Result{Any,EvalError}
   expr = safe_parse_julia(expr; parse_kws...)
   iserror(expr) ? EvalError(m, :error, unwrap_error(expr), backtrace()) : tryeval(m, unwrap(expr))
 end
