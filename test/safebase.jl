@@ -3,6 +3,19 @@ using ResultTypes
 using ResultTypes: iserror
 using ResultTypes.SafeBase
 
+@testset "ParseError" begin
+    inner_e = ErrorException("Test Error")
+    outer_e = ParseError(Int64, 123, "outer exception", Union{Ptr{Nothing},Base.InterpreterIP}[], inner_e)
+    inner_msg = sprint(Base.showerror, inner_e)
+    outer_msg = sprint(Base.showerror, outer_e)
+    @test Base.contains(outer_msg, inner_msg)
+
+    outermost_e = ParseError(Int64, 123, "outermost exception", Union{Ptr{Nothing},Base.InterpreterIP}[], outer_e)
+    outermost_msg = sprint(Base.showerror, outermost_e)
+    @test Base.contains(outermost_msg, inner_msg)
+    @test Base.contains(outermost_msg, outer_msg)
+end
+
 @testset "Safe Base" begin
     @testset "Safe parsing" begin
         res = safe_parse(Int, "42")
