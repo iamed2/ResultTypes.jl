@@ -10,9 +10,6 @@ using JuliaSyntax
 using ..ResultTypes
 export ParseError, safe_parse, safe_parse_julia, safe_parseall_julia, parse_julia, parseall_julia, EvalError, safe_eval
 
-"A stack trace, as would be accessed when catching an exception."
-const Backtrace = Vector{Union{Base.InterpreterIP,Ptr{Nothing}}}
-
 """
 An error when parsing an object of one type into another type.
 
@@ -23,12 +20,13 @@ struct ParseError <: Exception
   target::Type
   source::Any
   msg::String
-  bt::Backtrace
+  "A backtrace as returned by `backtraced()`"
+  bt::Any
   caused_by::Union{Exception,Nothing}
 end
 
-ParseError(target::Type, source::Any, msg::String, bt::Backtrace) =
-  ParseError(target::Type, source::Any, msg::String, bt::Backtrace, nothing)
+ParseError(target::Type, source::Any, msg::String, bt::Ant) =
+  ParseError(target::Type, source::Any, msg::String, bt::Any, nothing)
 
 function Base.showerror(io::IO, err::ParseError)
   (; target, source, msg, bt, caused_by) = err
@@ -119,7 +117,8 @@ struct EvalError <: Exception
   mod::Module
   expr::Union{Expr,Symbol}
   exc::Exception
-  bt::Backtrace
+  "A backtrace as returned by `backtraced()`"
+  bt::Any
 end
 
 format_code(ex::Symbol) = repr(ex)
@@ -144,12 +143,12 @@ end
 
 
 """
-Evaluate expression `expr` in module `m` (defaulting to `Kamchatka`).
+Evaluate expression `expr` in module `m`.
 
 This function can optionally throw if an exception is encountered.
 Otherwise, a silent failure is indicated by returning `nothing`.
 """
-function safe_eval(m::Module, expr)::Result{Any,EvalError}
+function safe_eval(m::Module, expr::Any)::Result{Any,EvalError}
   try
     Core.eval(m, expr)
   catch e
