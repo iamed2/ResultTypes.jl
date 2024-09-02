@@ -25,7 +25,7 @@ struct ParseError <: Exception
   caused_by::Union{Exception,Nothing}
 end
 
-ParseError(target::Type, source::Any, msg::String, bt::Ant) =
+ParseError(target::Type, source::Any, msg::String, bt::Any) =
   ParseError(target::Type, source::Any, msg::String, bt::Any, nothing)
 
 function Base.showerror(io::IO, err::ParseError)
