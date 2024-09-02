@@ -11,6 +11,8 @@ using ..ResultTypes
 export ParseError, safe_parse, safe_parse_julia, safe_parseall_julia, parse_julia, parseall_julia, EvalError, safe_eval
 
 """
+    ParseError(target::Type, source::Any, msg::String, bt::Any)
+
 An error when parsing an object of one type into another type.
 
 `source` is the object from that was attempted to be parsed and `target`
@@ -66,7 +68,9 @@ end
 # # Julia parsing
 
 """
-Alternative to `Meta.parse` based on `JuliaSyntax.jl` library. Function doesn't throw, but wraps returned value (or error) in a `Result`.
+    safe_parse_julia(str::AbstractString, rule::Symbol=:statement, filename::Union{Nothing,String}=nothing)
+
+Alternative to `Meta.parse` based on `JuliaSyntax.jl` library. Function doesn't throw, but wraps the result of parsing `str` (or error) in a `Result`.
 As opposed to `Meta.parse`, `:error` and `:incomplete` expressions both are treated as `ParseError`.
 
 Optional argument `rule` can accept values :statement or :all, indicating parsing single-expression vs multi-expression inputs, respectively.
@@ -101,11 +105,22 @@ parse_julia(
   filename::Union{Nothing,String}=nothing,
 ) = unwrap(safe_parse_julia(str, rule, filename))
 
-"""Alternative to `Meta.parseall` that does not return incomplete expressions and doesn't throw, but wraps returned value (or error) in a `Result`."""
+"""
+    safe_parseall_julia(str::AbstractString, filename::Union{Nothing,String}=nothing)
+
+Alternative to `Meta.parseall` that does not return incomplete expressions and doesn't throw, but wraps the result
+of parsing `str` (or error) in a `Result`.
+Optionally, a `filename` argument can be passed to attach it to the parsed `LineNumberNode`s.
+"""
 safe_parseall_julia(str::AbstractString, filename::Union{Nothing,String}=nothing) =
   safe_parse_julia(str, :all, filename)
 
-"""Alternative to `Meta.parseall` that does not return incomplete expressions. Throws on error."""
+"""
+    parseall_julia(str::AbstractString, filename::Union{Nothing,String}=nothing)
+
+Alternative to `Meta.parseall` that does not return incomplete expressions. Throws on error.
+Optionally, a filename argument can be passed to attach it to the parsed `LineNumberNode`s.
+"""
 parseall_julia(str::AbstractString, filename::Union{Nothing,String}=nothing) = parse_julia(str, :all, filename)
 
 
@@ -143,7 +158,9 @@ end
 
 
 """
-Evaluate expression `expr` in module `m`.
+    safe_eval(m::Module, expr::Any)::Result{Any,EvalError}
+
+Evaluate a Julia expression `expr` in module `m`.
 
 This function can optionally throw if an exception is encountered.
 Otherwise, a silent failure is indicated by returning `nothing`.
