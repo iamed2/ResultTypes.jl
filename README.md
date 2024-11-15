@@ -60,6 +60,10 @@ julia> integer_division(3, 0)
 ErrorResult(Int64, DivideError())
 ```
 
+## Safe Base
+
+The `ResultTypes.SafeBase` module contains some useful new functions and overloadings of Base Julia functions that return a `Result` type instead of throwing on error. The functions are prefixed with `safe_`, such as `safe_parse`, `safe_parse_julia`, and `safe_eval`.
+
 ## Evidence of Benefits
 
 ### Theoretical
