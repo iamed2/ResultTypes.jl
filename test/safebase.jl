@@ -73,5 +73,13 @@ end
         @test iserror(res)
         e = unwrap_error(res)
         @test e isa EvalError
+
+        res = safe_eval(Main, "div(1, 1)")
+        @test unwrap(res) == 1
+
+        res = safe_eval(Main, "div(1, 0")
+        @test iserror(res)
+        e = unwrap_error(res)
+        @test e isa EvalError
     end
 end

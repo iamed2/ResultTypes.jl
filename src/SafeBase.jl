@@ -8,6 +8,7 @@ module SafeBase
 
 using JuliaSyntax
 using ..ResultTypes
+using ..ResultTypes: iserror
 export ParseError, safe_parse, safe_parse_julia, safe_parseall_julia, parse_julia, parseall_julia, EvalError, safe_eval
 
 """
@@ -175,7 +176,7 @@ end
 
 function safe_eval(m::Module, expr::AbstractString; parse_kws...)::Result{Any,EvalError}
   expr = safe_parse_julia(expr; parse_kws...)
-  iserror(expr) ? EvalError(m, :error, unwrap_error(expr), backtrace()) : tryeval(m, unwrap(expr))
+  iserror(expr) ? EvalError(m, :error, unwrap_error(expr), backtrace()) : safe_eval(m, unwrap(expr))
 end
 
 end
